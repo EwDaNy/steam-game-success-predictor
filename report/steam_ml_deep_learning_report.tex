@@ -1,0 +1,579 @@
+\documentclass[12pt,a4paper]{article}
+
+% ---------------- Packages ----------------
+\usepackage[utf8]{inputenc}
+\usepackage[T2A]{fontenc}
+\usepackage[english,russian]{babel}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{setspace}
+
+\geometry{left=2cm,right=2cm,top=2cm,bottom=2cm}
+\onehalfspacing
+
+\definecolor{codegray}{rgb}{0.95,0.95,0.95}
+\definecolor{codeblue}{rgb}{0.1,0.1,0.6}
+
+\lstset{
+    backgroundcolor=\color{codegray},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{red!60!black},
+    breaklines=true,
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    tabsize=4,
+    showstringspaces=false
+}
+
+\begin{document}
+
+% ---------------- Title Page ----------------
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+
+    {\Large University Machine Learning Project Report\par}
+    \vspace{1.5cm}
+
+    {\Huge\bfseries Steam Game Success Prediction\par}
+    \vspace{0.5cm}
+
+    {\Large KNN, SVM, Random Forest and Deep Learning\par}
+
+    \vfill
+
+    \begin{flushleft}
+    \textbf{Student:} Your Name \\
+    \textbf{Course:} Machine Learning \\
+    \textbf{Project topic:} Steam Game Success Prediction \\
+    \textbf{Tools:} Python, Scikit-learn, TensorFlow/Keras, Streamlit \\
+    \textbf{Dataset:} Steam Games Dataset
+    \end{flushleft}
+
+    \vfill
+
+    {\large \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ---------------- Abstract ----------------
+\section{Abstract}
+
+This report presents four machine learning and deep learning projects developed for predicting the success of games on the Steam platform. The same dataset was used across all projects in order to make the comparison between models more consistent. The implemented models include K-Nearest Neighbors (KNN), Support Vector Machine (SVM), Random Forest, and a Deep Learning neural network.
+
+The main goal of the project is to build a system that can classify whether a Steam game is successful or not based on numerical game characteristics such as user score, playtime, price, discount, and other available indicators. In addition to model training and evaluation, deployment was also implemented using Streamlit, which allows users to enter game parameters and receive a prediction through a simple web interface.
+
+% ---------------- Introduction ----------------
+\section{Introduction}
+
+Steam is one of the largest digital distribution platforms for computer games. Thousands of games are published on the platform, and their success depends on many factors, including player reviews, engagement, price, discount strategy, and player activity. Because of this, Steam game data is suitable for machine learning tasks.
+
+In this project, the main task is binary classification. The model predicts whether a game is successful or not. The target variable was created using a combination of rating quality and player activity. A game is considered successful if it has a high positive review ratio and a higher level of concurrent user activity.
+
+The project was developed step by step using four different approaches:
+
+\begin{itemize}
+    \item K-Nearest Neighbors (KNN)
+    \item Support Vector Machine (SVM)
+    \item Random Forest Classifier
+    \item Deep Learning Neural Network
+\end{itemize}
+
+The first three models belong to classical machine learning, while the last model is based on deep learning. This makes it possible to compare traditional algorithms with a neural network approach.
+
+% ---------------- Dataset ----------------
+\section{Dataset Description}
+
+The dataset used in this project is a Steam games dataset. It contains information about games such as reviews, user scores, playtime, price, discounts, and concurrent users.
+
+Important columns used or considered in the project include:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{p{4cm} p{10cm}}
+\toprule
+\textbf{Column} & \textbf{Description} \\
+\midrule
+\texttt{positive} & Number of positive reviews \\
+\texttt{negative} & Number of negative reviews \\
+\texttt{userscore} & User score of the game \\
+\texttt{average\_forever} & Average total playtime \\
+\texttt{average\_2weeks} & Average playtime during the last two weeks \\
+\texttt{median\_forever} & Median total playtime \\
+\texttt{median\_2weeks} & Median playtime during the last two weeks \\
+\texttt{price} & Current price of the game \\
+\texttt{initialprice} & Initial price of the game \\
+\texttt{discount} & Discount percentage \\
+\texttt{ccu} & Concurrent users \\
+\bottomrule
+\end{tabular}
+\caption{Main dataset columns}
+\end{table}
+
+Some columns were removed because they were textual or not directly useful for numerical modelling. These include \texttt{name}, \texttt{developer}, \texttt{publisher}, and similar columns.
+
+% ---------------- Target ----------------
+\section{Target Variable Creation}
+
+The main target variable is called \texttt{success}. It represents whether a Steam game is successful or not.
+
+At first, the success of a game was defined using the ratio of positive reviews:
+
+\begin{lstlisting}[language=Python]
+df["rating_ratio"] = df["positive"] / (df["positive"] + df["negative"] + 1)
+\end{lstlisting}
+
+For the improved Random Forest and Deep Learning versions, a more realistic definition was used. A game is successful if it has both a high rating ratio and higher concurrent user activity:
+
+\begin{lstlisting}[language=Python]
+df["success"] = (
+    (df["rating_ratio"] >= 0.8) &
+    (df["ccu"] > df["ccu"].median())
+).astype(int)
+\end{lstlisting}
+
+This definition is more realistic because a successful game should not only have good reviews, but also active players.
+
+The target distribution was:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccc}
+\toprule
+\textbf{Class} & \textbf{Meaning} & \textbf{Count} \\
+\midrule
+0 & Not successful & 6589 \\
+1 & Successful & 3411 \\
+\bottomrule
+\end{tabular}
+\caption{Target variable distribution}
+\end{table}
+
+% ---------------- Preprocessing ----------------
+\section{Data Preprocessing}
+
+Data preprocessing was an important part of the project. Machine learning models cannot directly work with textual columns such as game names, developer names, or publisher names. Therefore, non-numerical and unnecessary columns were removed.
+
+For Random Forest and Deep Learning, the following columns were removed:
+
+\begin{lstlisting}[language=Python]
+columns_to_drop = [
+    "appid",
+    "name",
+    "developer",
+    "publisher",
+    "score_rank",
+    "owners",
+    "positive",
+    "negative",
+    "rating_ratio",
+    "ccu"
+]
+
+df = df.drop(columns=[col for col in columns_to_drop if col in df.columns])
+\end{lstlisting}
+
+The reason for removing \texttt{positive}, \texttt{negative}, \texttt{rating\_ratio}, and \texttt{ccu} is to prevent data leakage. These columns were used to create the target variable. If they remained in the feature set, the model could learn the answer directly and produce an unrealistically high accuracy.
+
+After cleaning, the final feature columns were:
+
+\begin{itemize}
+    \item \texttt{userscore}
+    \item \texttt{average\_forever}
+    \item \texttt{average\_2weeks}
+    \item \texttt{median\_forever}
+    \item \texttt{median\_2weeks}
+    \item \texttt{price}
+    \item \texttt{initialprice}
+    \item \texttt{discount}
+\end{itemize}
+
+% ---------------- KNN ----------------
+\section{K-Nearest Neighbors Project}
+
+\subsection{Model Explanation}
+
+K-Nearest Neighbors is a simple supervised machine learning algorithm used for classification and regression. In classification tasks, KNN predicts the class of a new object by looking at the classes of the nearest training examples.
+
+In this project, KNN was used to predict whether a Steam game is successful or not. The algorithm compares a new game with existing games in the dataset and assigns the class based on the majority class among the nearest neighbors.
+
+\subsection{Implementation}
+
+The KNN model was implemented using Scikit-learn:
+
+\begin{lstlisting}[language=Python]
+from sklearn.neighbors import KNeighborsClassifier
+
+model = KNeighborsClassifier(n_neighbors=5)
+model.fit(X_train, y_train)
+\end{lstlisting}
+
+Before training, the features were scaled using \texttt{StandardScaler}. This is especially important for KNN because the algorithm is distance-based. If one feature has much larger values than another, it can dominate the distance calculation.
+
+\begin{lstlisting}[language=Python]
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+\end{lstlisting}
+
+\subsection{Deployment}
+
+The KNN model was deployed using Streamlit. The user can enter game parameters such as positive reviews, negative reviews, user score, playtime, price, discount, and concurrent users. The application then predicts whether the game is successful.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/knn_app.png}
+\caption{KNN Streamlit deployment screenshot}
+\end{figure}
+
+% ---------------- SVM ----------------
+\section{Support Vector Machine Project}
+
+\subsection{Model Explanation}
+
+Support Vector Machine is a supervised machine learning algorithm that tries to find the best boundary between classes. This boundary is called a hyperplane. SVM is powerful because it can work with both linear and non-linear classification problems.
+
+In this project, SVM was used for binary classification of Steam games into successful and not successful classes.
+
+\subsection{Implementation}
+
+The SVM model was implemented using the \texttt{SVC} class from Scikit-learn:
+
+\begin{lstlisting}[language=Python]
+from sklearn.svm import SVC
+
+model = SVC(kernel="rbf", C=1, class_weight="balanced")
+model.fit(X_train, y_train)
+\end{lstlisting}
+
+The \texttt{rbf} kernel was used because the relationship between game features and success may not be linear. The parameter \texttt{class\_weight="balanced"} helps the model deal with class imbalance.
+
+\subsection{Deployment}
+
+The SVM model can also be deployed using Streamlit in the same way as KNN. The model and scaler are saved using Joblib and loaded in the application.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/svm_code.png}
+\caption{SVM code or application screenshot}
+\end{figure}
+
+% ---------------- Random Forest ----------------
+\section{Random Forest Project}
+
+\subsection{Model Explanation}
+
+Random Forest is an ensemble machine learning algorithm based on multiple decision trees. Instead of using one decision tree, Random Forest creates many trees and combines their predictions. This usually improves accuracy and reduces overfitting.
+
+For classification, each tree gives a prediction, and the final result is selected by majority voting.
+
+\subsection{Why Random Forest Was Used}
+
+Random Forest is suitable for this project because:
+
+\begin{itemize}
+    \item it works well with tabular data;
+    \item it can handle non-linear relationships;
+    \item it is less sensitive to outliers than some other algorithms;
+    \item it provides feature importance values;
+    \item it usually performs well without heavy parameter tuning.
+\end{itemize}
+
+\subsection{Implementation}
+
+The model was implemented as follows:
+
+\begin{lstlisting}[language=Python]
+from sklearn.ensemble import RandomForestClassifier
+
+model = RandomForestClassifier(
+    n_estimators=100,
+    random_state=42,
+    class_weight="balanced"
+)
+
+model.fit(X_train, y_train)
+\end{lstlisting}
+
+The model achieved an accuracy of approximately:
+
+\begin{center}
+\textbf{Random Forest Accuracy: 0.759}
+\end{center}
+
+This result is realistic because data leakage was removed from the dataset. Earlier, the model produced an accuracy of 1.0 because the features \texttt{positive} and \texttt{negative} were still present, even though they were used to create the target variable. After removing these columns, the model produced a more reliable result.
+
+\subsection{Feature Importance}
+
+One advantage of Random Forest is that it can show which features were most important for prediction.
+
+\begin{lstlisting}[language=Python]
+feature_importance = pd.DataFrame({
+    "Feature": X.columns,
+    "Importance": model.feature_importances_
+}).sort_values(by="Importance", ascending=False)
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/random_forest_importance.png}
+\caption{Random Forest feature importance}
+\end{figure}
+
+\subsection{Deployment}
+
+The Random Forest model was deployed using Streamlit. The application loads the saved model and feature list, takes input from the user, and returns the predicted class.
+
+\begin{lstlisting}[language=Python]
+model = joblib.load("random_forest_model.pkl")
+features = joblib.load("rf_features.pkl")
+\end{lstlisting}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/random_forest_app.png}
+\caption{Random Forest Streamlit deployment screenshot}
+\end{figure}
+
+% ---------------- Deep Learning ----------------
+\section{Deep Learning Project}
+
+\subsection{Model Explanation}
+
+Deep Learning is a subfield of machine learning based on artificial neural networks. Neural networks are inspired by the structure of the human brain. They consist of layers of neurons that learn patterns from data.
+
+In this project, a neural network was built using TensorFlow and Keras. The task remained the same: predict whether a Steam game is successful or not.
+
+\subsection{Data Scaling}
+
+Scaling is very important in deep learning. Neural networks train better when input features have similar ranges. Therefore, \texttt{StandardScaler} was used:
+
+\begin{lstlisting}[language=Python]
+scaler = StandardScaler()
+
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+\end{lstlisting}
+
+After scaling, the values are transformed into standardized numerical values. This helps the neural network train more efficiently.
+
+\subsection{Neural Network Architecture}
+
+The neural network was created using Keras Sequential API:
+
+\begin{lstlisting}[language=Python]
+model = Sequential([
+    Dense(64, activation="relu", input_shape=(X_train.shape[1],)),
+    Dense(32, activation="relu"),
+    Dense(1, activation="sigmoid")
+])
+\end{lstlisting}
+
+The first layer contains 64 neurons, the second hidden layer contains 32 neurons, and the output layer contains 1 neuron. The output layer uses the sigmoid activation function because this is a binary classification problem.
+
+\subsection{Compilation}
+
+The model was compiled using the Adam optimizer and binary cross-entropy loss:
+
+\begin{lstlisting}[language=Python]
+model.compile(
+    optimizer="adam",
+    loss="binary_crossentropy",
+    metrics=["accuracy"]
+)
+\end{lstlisting}
+
+\subsection{Training}
+
+The model was trained for 20 epochs:
+
+\begin{lstlisting}[language=Python]
+history = model.fit(
+    X_train,
+    y_train,
+    epochs=20,
+    batch_size=32,
+    validation_split=0.2
+)
+\end{lstlisting}
+
+During training, both training accuracy and validation accuracy were monitored. This helps understand whether the model is learning correctly or overfitting.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/deep_learning_training.png}
+\caption{Deep Learning training process}
+\end{figure}
+
+\subsection{Evaluation}
+
+The neural network achieved the following test result:
+
+\begin{center}
+\textbf{Deep Learning Test Accuracy: 0.763}
+\end{center}
+
+The classification report was:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Class} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-score} & \textbf{Support} \\
+\midrule
+0 & 0.81 & 0.84 & 0.82 & 1318 \\
+1 & 0.67 & 0.61 & 0.64 & 682 \\
+\bottomrule
+\end{tabular}
+\caption{Deep Learning classification report}
+\end{table}
+
+The confusion matrix was:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ccc}
+\toprule
+ & \textbf{Predicted 0} & \textbf{Predicted 1} \\
+\midrule
+\textbf{Actual 0} & 1108 & 210 \\
+\textbf{Actual 1} & 264 & 418 \\
+\bottomrule
+\end{tabular}
+\caption{Deep Learning confusion matrix}
+\end{table}
+
+The model performed well on class 0 and reasonably on class 1. Class 1 was more difficult because there were fewer successful games in the dataset.
+
+\subsection{Deployment}
+
+The deep learning model was deployed using Streamlit. The model, scaler, and feature list were saved as separate files:
+
+\begin{lstlisting}[language=Python]
+model.save("deep_learning_model.keras")
+joblib.dump(scaler, "dl_scaler.pkl")
+joblib.dump(list(X.columns), "dl_features.pkl")
+\end{lstlisting}
+
+The Streamlit application loads these files:
+
+\begin{lstlisting}[language=Python]
+model = tf.keras.models.load_model("deep_learning_model.keras")
+scaler = joblib.load("dl_scaler.pkl")
+features = joblib.load("dl_features.pkl")
+\end{lstlisting}
+
+The user enters the game parameters, the input is scaled, and the model predicts the probability of success.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{images/deep_learning_app.png}
+\caption{Deep Learning Streamlit deployment screenshot}
+\end{figure}
+
+% ---------------- Comparison ----------------
+\section{Model Comparison}
+
+The four models were developed using similar project structure, but they use different learning principles.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{p{3cm} p{5cm} p{4cm}}
+\toprule
+\textbf{Model} & \textbf{Main Idea} & \textbf{Result} \\
+\midrule
+KNN & Classifies based on nearest examples & Good baseline model \\
+SVM & Finds optimal separating boundary & Strong classical ML model \\
+Random Forest & Combines many decision trees & Accuracy around 0.759 \\
+Deep Learning & Learns patterns through neural network layers & Accuracy around 0.763 \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of implemented models}
+\end{table}
+
+The Deep Learning model showed a slightly higher accuracy than Random Forest. However, the difference is small. This means that for this dataset, both Random Forest and the neural network are suitable approaches.
+
+% ---------------- Deployment Explanation ----------------
+\section{Deployment Explanation}
+
+Deployment is the process of making a trained model available for real use. In this project, deployment was implemented using Streamlit.
+
+The general deployment workflow is:
+
+\begin{enumerate}
+    \item Train the model in Jupyter Notebook.
+    \item Save the trained model.
+    \item Save the scaler and feature list.
+    \item Create an \texttt{app.py} file.
+    \item Load the saved files in Streamlit.
+    \item Accept user input.
+    \item Apply the same preprocessing steps.
+    \item Return prediction and probability.
+\end{enumerate}
+
+This is important because the model must receive input data in the same format as during training. For example, in the deep learning project, input data must be scaled using the same scaler that was fitted on the training data.
+
+% ---------------- Problems and Solutions ----------------
+\section{Problems Encountered and Solutions}
+
+Several problems appeared during the development process.
+
+\subsection{String Columns in Machine Learning Models}
+
+Some models produced errors because textual columns were still present in the dataset. Machine learning models require numerical input, so columns such as \texttt{name}, \texttt{developer}, and \texttt{publisher} were removed.
+
+\subsection{Data Leakage}
+
+Random Forest initially produced an accuracy of 1.0. This was caused by data leakage because the columns \texttt{positive} and \texttt{negative} were used to create the target variable and also remained in the features. After removing them, the accuracy became realistic.
+
+\subsection{TensorFlow Installation}
+
+TensorFlow did not install on the first attempt because the Python version was too new. The solution was to use Python 3.11 and create a virtual environment.
+
+\subsection{Virtual Environment}
+
+A virtual environment was used to isolate the project dependencies. This allowed TensorFlow, Streamlit, Pandas, Scikit-learn, and other libraries to be installed specifically for this project without affecting other projects.
+
+\subsection{Missing Deployment Files}
+
+The Streamlit application required saved model files. If \texttt{deep\_learning\_model.keras}, \texttt{dl\_scaler.pkl}, or \texttt{dl\_features.pkl} were missing, the app could not start. The solution was to save these files again from the notebook.
+
+% ---------------- Conclusion ----------------
+\section{Conclusion}
+
+In this project, four different models were created to predict Steam game success: KNN, SVM, Random Forest, and Deep Learning. The project showed the full machine learning workflow, including data loading, preprocessing, target creation, model training, evaluation, and deployment.
+
+KNN and SVM were useful as classical baseline models. Random Forest provided a strong and interpretable model, especially because it can show feature importance. Deep Learning achieved a slightly higher accuracy than Random Forest and demonstrated how neural networks can be applied to tabular classification problems.
+
+The final deep learning model achieved a test accuracy of approximately 0.763, while the Random Forest model achieved approximately 0.759. These results are realistic because data leakage was removed and the models were evaluated on unseen test data.
+
+Overall, the project demonstrates a complete practical machine learning pipeline for Steam game success prediction and includes deployment through Streamlit.
+
+% ---------------- Appendix ----------------
+\newpage
+\section{Appendix: Screenshots to Insert}
+
+Upload screenshots to the \texttt{images} folder in Overleaf and use the following filenames:
+
+\begin{itemize}
+    \item \texttt{images/knn\_code.png}
+    \item \texttt{images/knn\_app.png}
+    \item \texttt{images/svm\_code.png}
+    \item \texttt{images/random\_forest\_importance.png}
+    \item \texttt{images/random\_forest\_app.png}
+    \item \texttt{images/deep\_learning\_training.png}
+    \item \texttt{images/deep\_learning\_app.png}
+\end{itemize}
+
+\end{document}
