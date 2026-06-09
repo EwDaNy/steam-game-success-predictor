@@ -71,6 +71,16 @@ The combined app includes two preset buttons:
 
 These buttons fill all input fields with example game data, so the app can be demonstrated quickly.
 
+## Presentation
+
+The project presentation is available here:
+
+```text
+report\steam_game_success_predictor_presentation.pptx
+```
+
+It summarizes the problem, dataset, methodology, models, evaluation, cross-validation and Streamlit deployment. The presentation uses the same diagrams and screenshots as the LaTeX documentation.
+
 ## Individual Deployment
 
 Each model can also be launched separately from its own folder.
@@ -162,4 +172,3 @@ These columns are related to the target variable, so leaving them in the input f
 - Keep model files in their project folders.
 - If notebooks are rerun, saved `.pkl` or `.keras` files may be overwritten. This is normal.
 - If you only need cross-validation results, you do not need to delete any saved model files before running notebooks.
-
